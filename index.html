@@ -12,11 +12,11 @@
 <style>
   /* ——————————————————————————————————————————————————
      CSS Custom Properties — a modular typographic scale
-     based on a 1.333 (perfect fourth) ratio
+     based on a 1.25 (major third) ratio
      —————————————————————————————————————————————————— */
   :root {
     --base: 23px;
-    --scale: 1.333;
+    --scale: 1.25;
 
     --s-2: calc(var(--base) / var(--scale) / var(--scale));
     --s-1: calc(var(--base) / var(--scale));
@@ -33,14 +33,14 @@
     --leading-display: 1.08;
 
     /* The page */
-    --paper: #faf6f0;
-    --paper-shadow: #f0ebe3;
-    --ink: #2c2419;
-    --ink-light: #6b5d4d;
-    --ink-faint: #917f6d;
-    --ink-ghost: #b8ad9f;
-    --accent: #8b3a3a;
-    --rule: #d6cfc5;
+    --paper: #f5f0e6;
+    --paper-shadow: #ebe5d8;
+    --ink: #2a1f1a;
+    --ink-light: #4a3530;
+    --ink-faint: #6e534a;
+    --ink-ghost: #9a857a;
+    --accent: #6b2a2a;
+    --rule: #c9bfb0;
 
     /* Measure: ~66 characters */
     --measure: 28em;
@@ -141,7 +141,7 @@
     font-weight: 300;
     font-size: var(--s0);
     color: var(--ink-faint);
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     margin-bottom: 0.25rem;
   }
 
@@ -218,7 +218,7 @@
     font-style: italic;
     font-size: var(--s-2);
     color: var(--ink-ghost);
-    letter-spacing: 0.03em;
+    letter-spacing: 0;
   }
 
   .credits {
@@ -227,7 +227,7 @@
     font-style: italic;
     font-size: var(--s-2);
     color: var(--ink-faint);
-    letter-spacing: 0.03em;
+    letter-spacing: 0;
   }
 
   .credits a {
@@ -246,7 +246,7 @@
     font-style: italic;
     font-size: var(--s-1);
     color: var(--ink-faint);
-    letter-spacing: 0.03em;
+    letter-spacing: 0;
     margin-top: 0.4rem;
     margin-bottom: 2.5rem;
   }
@@ -316,7 +316,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     padding: 0.3em 0;
     text-decoration: none;
     transition: color 0.2s ease;
@@ -366,7 +366,7 @@
     font-weight: 600;
     font-size: var(--s4);
     line-height: var(--leading-display);
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     text-transform: lowercase;
     text-align: left;
     margin-top: 3rem;
@@ -597,7 +597,7 @@
     font-style: italic;
     font-size: var(--s-2);
     color: var(--ink-ghost);
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     line-height: 1.8;
   }
 
