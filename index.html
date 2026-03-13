@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swankdown</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='76' font-size='80' font-family='Georgia,serif' font-style='italic' font-weight='600' fill='%232c2419' text-anchor='middle'>S</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Cormorant+SC:wght@300;400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  /* ——————————————————————————————————————————————————
+     CSS Custom Properties — a modular typographic scale
+     based on a 1.333 (perfect fourth) ratio
+     —————————————————————————————————————————————————— */
+  :root {
+    --base: 23px;
+    --scale: 1.333;
+
+    --s-2: calc(var(--base) / var(--scale) / var(--scale));
+    --s-1: calc(var(--base) / var(--scale));
+    --s0:  var(--base);
+    --s1:  calc(var(--base) * var(--scale));
+    --s2:  calc(var(--base) * var(--scale) * var(--scale));
+    --s3:  calc(var(--base) * var(--scale) * var(--scale) * var(--scale));
+    --s4:  calc(var(--base) * var(--scale) * var(--scale) * var(--scale) * var(--scale));
+    --s5:  calc(var(--base) * var(--scale) * var(--scale) * var(--scale) * var(--scale) * var(--scale));
+
+    /* Leading: Bringhurst recommends 120–145% for text */
+    --leading: 1.58;
+    --leading-tight: 1.15;
+    --leading-display: 1.08;
+
+    /* The page */
+    --paper: #faf6f0;
+    --paper-shadow: #f0ebe3;
+    --ink: #2c2419;
+    --ink-light: #6b5d4d;
+    --ink-faint: #917f6d;
+    --ink-ghost: #b8ad9f;
+    --accent: #8b3a3a;
+    --rule: #d6cfc5;
+
+    /* Measure: ~66 characters */
+    --measure: 28em;
+
+    --transition-smooth: 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    --transition-fade: 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ——————————————————————————————————————————————————
+     Reset & Base
+     —————————————————————————————————————————————————— */
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: var(--base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "pnum" 1, "onum" 1;
+  }
+
+  body {
+    font-family: 'EB Garamond', 'Garamond', 'Georgia', serif;
+    font-size: 1rem;
+    line-height: var(--leading);
+    color: var(--ink);
+    background: var(--paper);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle paper texture via noise */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* ——————————————————————————————————————————————————
+     Layout Shells
+     —————————————————————————————————————————————————— */
+  .scene {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  /* ——————————————————————————————————————————————————
+     Input View
+     —————————————————————————————————————————————————— */
+  .input-view {
+    width: 100%;
+    max-width: 40rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .input-view.exiting {
+    animation: fadeOut 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes fadeOut {
+    to { opacity: 0; transform: translateY(-12px); }
+  }
+
+  .brand {
+    font-family: 'Cormorant SC', 'Garamond', serif;
+    font-size: var(--s3);
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+    margin-bottom: 0.25rem;
+    text-transform: lowercase;
+  }
+
+  .brand-sub {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: var(--s0);
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    margin-bottom: 0.25rem;
+  }
+
+  .paste-area {
+    width: 100%;
+    position: relative;
+  }
+
+  .paste-area textarea {
+    width: 100%;
+    min-height: 12rem;
+    height: calc(100vh - 22rem);
+    max-height: 28rem;
+    padding: 2rem 2.25rem;
+    font-family: 'EB Garamond', serif;
+    font-size: var(--s-1);
+    line-height: 1.65;
+    color: var(--ink);
+    background: transparent;
+    border: 1.5px solid var(--ink-ghost);
+    border-radius: 2px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .paste-area textarea::placeholder {
+    color: var(--ink-ghost);
+    font-style: italic;
+  }
+
+  .paste-area textarea:focus {
+    border-color: var(--ink-faint);
+    box-shadow: 0 0 0 1px var(--ink-ghost);
+  }
+
+  .actions {
+    margin-top: 1.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .btn-read {
+    font-family: 'Cormorant SC', serif;
+    font-size: var(--s-1);
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: lowercase;
+    color: var(--paper);
+    background: var(--ink);
+    border: none;
+    padding: 0.65em 2.5em 0.75em;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: background 0.3s ease, transform 0.15s ease;
+  }
+
+  .btn-read:hover {
+    background: var(--accent);
+  }
+
+  .btn-read:active {
+    transform: scale(0.97);
+  }
+
+  .btn-read:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .or-drop {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: var(--s-2);
+    color: var(--ink-ghost);
+    letter-spacing: 0.03em;
+  }
+
+  .credits {
+    margin-top: 1.5rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: var(--s-2);
+    color: var(--ink-faint);
+    letter-spacing: 0.03em;
+  }
+
+  .credits a {
+    color: var(--ink-light);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .credits a:hover {
+    color: var(--ink);
+  }
+
+  .tribute {
+    margin-top: 2.5rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: var(--s-1);
+    color: var(--ink-faint);
+    letter-spacing: 0.03em;
+    margin-top: 0.4rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .tribute a {
+    color: var(--ink-light);
+    text-decoration: none;
+    border-bottom: 1px solid var(--ink-ghost);
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .tribute a:hover {
+    color: var(--ink);
+    border-bottom-color: var(--ink-light);
+  }
+
+  /* Drag overlay */
+  .paste-area.dragging textarea {
+    border-color: var(--ink-light);
+    box-shadow: 0 0 0 2px var(--ink-ghost);
+  }
+
+  /* ——————————————————————————————————————————————————
+     Reading View — the page
+     —————————————————————————————————————————————————— */
+  .reading-view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 100vh;
+    padding: 0 2rem;
+  }
+
+  .reading-view.active {
+    display: flex;
+    animation: pageReveal 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .reading-view.exiting {
+    animation: fadeOut 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes pageReveal {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Back button — top left, subtle */
+  .back-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1.25rem 2rem;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .btn-back {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: var(--s0);
+    color: var(--ink-faint);
+    background: none;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    padding: 0.3em 0;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .btn-back:hover {
+    color: var(--ink-light);
+  }
+
+  /* The page surface */
+  .page {
+    max-width: var(--measure);
+    width: 100%;
+    padding: 2rem 0 8rem;
+  }
+
+  /* ——————————————————————————————————————————————————
+     Typographic Styles — the heart of it
+     —————————————————————————————————————————————————— */
+
+  /* Paragraphs: Bringhurst recommends either
+     indented-first-line or space-between, never both */
+  .page p {
+    margin-bottom: 0;
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    hanging-punctuation: first allow-end last;
+  }
+
+  .page p + p {
+    text-indent: 1.5em;
+  }
+
+  /* After headings, blockquotes, lists, etc., no indent */
+  .page h1 + p, .page h2 + p, .page h3 + p,
+  .page h4 + p, .page h5 + p, .page h6 + p,
+  .page blockquote + p, .page ul + p, .page ol + p,
+  .page pre + p, .page hr + p, .page figure + p,
+  .page .table-wrap + p {
+    text-indent: 0;
+  }
+
+  /* Headings — Cormorant SC for display, restrained sizing */
+  .page h1 {
+    font-family: 'Cormorant SC', serif;
+    font-weight: 600;
+    font-size: var(--s4);
+    line-height: var(--leading-display);
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+    text-align: left;
+    margin-top: 3rem;
+    margin-bottom: 1.8rem;
+    color: var(--ink);
+  }
+
+  /* Ornamental rule after h1 */
+
+  .page h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: var(--s2);
+    line-height: var(--leading-tight);
+    letter-spacing: 0.02em;
+    margin-top: 2.8rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .page h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-style: italic;
+    font-size: var(--s1);
+    line-height: var(--leading-tight);
+    margin-top: 2.2rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .page h4 {
+    font-family: 'Cormorant SC', serif;
+    font-weight: 500;
+    font-size: var(--s0);
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .page h5, .page h6 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: var(--s0);
+    font-style: italic;
+    margin-top: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  /* Links */
+  .page a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+  }
+
+  .page a:hover {
+    border-bottom-color: var(--accent);
+  }
+
+  /* Strong & Em */
+  .page strong {
+    font-weight: 600;
+  }
+
+  .page em {
+    font-style: italic;
+  }
+
+  /* Blockquotes — indented, slightly smaller, italic */
+  .page blockquote {
+    margin: 1.8rem 0;
+    margin-left: 1.5em;
+    padding-left: 1.5em;
+    border-left: 2px solid var(--rule);
+    font-style: italic;
+    color: var(--ink-light);
+  }
+
+  .page blockquote p {
+    text-indent: 0 !important;
+    text-align: left;
+  }
+
+  .page blockquote p + p {
+    margin-top: 0.5em;
+    text-indent: 0 !important;
+  }
+
+  /* Lists */
+  .page ul, .page ol {
+    margin: 1.2rem 0;
+    padding-left: 1.5em;
+  }
+
+  .page li {
+    margin-bottom: 0.3em;
+    text-align: left;
+  }
+
+  .page li::marker {
+    color: var(--ink-faint);
+  }
+
+  /* Horizontal rules — a typographic ornament */
+  .page hr {
+    border: none;
+    text-align: center;
+    margin: 2.5rem 0;
+  }
+
+  .page hr::before {
+    content: '* \2003 * \2003 *';
+    font-family: 'Cormorant Garamond', serif;
+    font-size: var(--s-1);
+    color: var(--ink-ghost);
+    letter-spacing: 0.3em;
+  }
+
+  /* Code — inline */
+  .page code {
+    font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+    font-size: 0.82em;
+    background: var(--paper-shadow);
+    padding: 0.12em 0.4em;
+    border-radius: 2px;
+    color: var(--ink-light);
+  }
+
+  /* Code blocks */
+  .page pre {
+    margin: 1.8rem 0;
+    padding: 1.5rem 1.75rem;
+    background: #2c2a26;
+    color: #d4cfc8;
+    border-radius: 2px;
+    overflow-x: auto;
+    line-height: 1.55;
+    font-size: 0.78rem;
+  }
+
+  .page pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* Tables */
+  .page table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.8rem 0;
+    font-size: var(--s-1);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  .page thead th {
+    font-family: 'Cormorant SC', serif;
+    font-weight: 500;
+    font-size: var(--s-2);
+    letter-spacing: 0.1em;
+    text-transform: lowercase;
+    text-align: left;
+    padding: 0.5em 0.75em;
+    border-bottom: 1.5px solid var(--ink-light);
+    color: var(--ink-light);
+  }
+
+  .page tbody td {
+    padding: 0.5em 0.75em;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  .page tbody tr:last-child td {
+    border-bottom: 1.5px solid var(--ink-light);
+  }
+
+  /* Images */
+  .page img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 2rem auto;
+    border-radius: 2px;
+  }
+
+  /* Footnote-style superscripts */
+  .page sup {
+    font-size: 0.7em;
+    line-height: 0;
+    vertical-align: super;
+  }
+
+  /* ——————————————————————————————————————————————————
+     Drop Cap — first letter of the first paragraph
+     —————————————————————————————————————————————————— */
+  .page > p:first-of-type::first-letter {
+    font-family: 'Cormorant SC', serif;
+    font-weight: 700;
+    float: left;
+    font-size: 3.6em;
+    line-height: 0.78;
+    padding-right: 0.08em;
+    margin-top: 0.05em;
+    color: var(--ink);
+  }
+
+  .page > p:first-of-type {
+    text-indent: 0;
+  }
+
+  /* ——————————————————————————————————————————————————
+     Colophon — bottom of the reading page
+     —————————————————————————————————————————————————— */
+  .colophon {
+    max-width: var(--measure);
+    width: 100%;
+    text-align: center;
+    padding: 3rem 0 4rem;
+    border-top: 1px solid var(--rule);
+    margin-top: 2rem;
+  }
+
+  .colophon p {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: var(--s-2);
+    color: var(--ink-ghost);
+    letter-spacing: 0.04em;
+    line-height: 1.8;
+  }
+
+  /* ——————————————————————————————————————————————————
+     Responsive
+     —————————————————————————————————————————————————— */
+  @media (max-width: 600px) {
+    :root { --base: 20px; }
+    .page { padding: 3rem 0 5rem; }
+    .paste-area textarea { min-height: 8rem; height: calc(100vh - 20rem); max-height: 20rem; padding: 1.25rem 1.5rem; }
+    .input-view { padding: 0 0.5rem; }
+  }
+
+  /* ——————————————————————————————————————————————————
+     Scroll progress — a thin rule at the top
+     —————————————————————————————————————————————————— */
+  .scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 1px;
+    background: var(--ink-faint);
+    width: 0%;
+    z-index: 200;
+    transition: width 0.1s linear;
+  }
+
+  /* Print styles — because a well-set page deserves print */
+  @media print {
+    body::before, .back-bar, .scroll-progress { display: none; }
+    .page { padding: 0; }
+    .reading-view { padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- ————— INPUT VIEW ————— -->
+<div class="scene" id="inputScene">
+  <div class="input-view" id="inputView">
+    <div class="brand">Swankdown</div>
+    <div class="brand-sub">paste markdown, read beautifully</div>
+    <div class="tribute">
+      Typography informed by <a href="https://www.amazon.com/Elements-Typographic-Style-Robert-Bringhurst/dp/0881792128" target="_blank" rel="noopener">The Elements of Typographic Style</a> by Robert Bringhurst
+    </div>
+    <div class="paste-area" id="pasteArea">
+      <textarea
+        id="markdownInput"
+        placeholder="Paste your markdown here…"
+        spellcheck="false"
+      ></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn-read" id="btnRead" disabled>read</button>
+      <span class="or-drop">or drop a .md file</span>
+    </div>
+    <div class="credits">
+      Made by Gustavo Saiani · <a href="https://github.com/gusaiani" target="_blank" rel="noopener">Github</a> · <a href="https://www.linkedin.com/in/gusaiani/" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </div>
+</div>
+
+<!-- ————— READING VIEW ————— -->
+<div class="reading-view" id="readingView">
+  <div class="back-bar">
+    <a href="#" class="btn-back" id="btnBack">← new text</a>
+  </div>
+  <div class="page" id="pageContent"></div>
+  <div class="colophon">
+    <p>Set in EB Garamond &amp; Cormorant · Typeset by Swankdown</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const input      = document.getElementById('markdownInput');
+  const btnRead    = document.getElementById('btnRead');
+  const btnBack    = document.getElementById('btnBack');
+  const inputScene = document.getElementById('inputScene');
+  const inputView  = document.getElementById('inputView');
+  const readView   = document.getElementById('readingView');
+  const pageEl     = document.getElementById('pageContent');
+  const pasteArea  = document.getElementById('pasteArea');
+  const scrollBar  = document.getElementById('scrollProgress');
+
+  /* ── Enable / disable read button ── */
+  input.addEventListener('input', () => {
+    btnRead.disabled = input.value.trim().length === 0;
+  });
+
+  /* ── Typographic refinements ── */
+  function refineTypography(html) {
+    let s = html;
+    // Straight quotes → curly quotes
+    s = s.replace(/"(\w)/g,  '\u201c$1');          // opening double
+    s = s.replace(/(\w)"/g,  '$1\u201d');           // closing double
+    s = s.replace(/'(\w)/g,  '\u2018$1');           // opening single
+    s = s.replace(/(\w)'/g,  '$1\u2019');           // closing single  / apostrophe
+    // Double/triple dashes → em/en dashes
+    s = s.replace(/---/g,    '\u2014');
+    s = s.replace(/--/g,     '\u2013');
+    // Ellipsis
+    s = s.replace(/\.\.\./g, '\u2026');
+    // Multiplication sign for dimensions
+    s = s.replace(/(\d)\s*x\s*(\d)/g, '$1\u00d7$2');
+    return s;
+  }
+
+  /* ── Configure marked ── */
+  marked.setOptions({
+    smartypants: false,
+    gfm: true,
+    breaks: false
+  });
+
+  /* ── Transition to reading view ── */
+  function enterReading() {
+    const raw  = input.value;
+    const html = refineTypography(marked.parse(raw));
+
+    inputView.classList.add('exiting');
+
+    setTimeout(() => {
+      inputScene.style.display = 'none';
+      pageEl.innerHTML = html;
+      readView.classList.add('active');
+      readView.classList.remove('exiting');
+      window.scrollTo(0, 0);
+    }, 450);
+  }
+
+  /* ── Transition back to input ── */
+  function exitReading() {
+    readView.classList.add('exiting');
+
+    setTimeout(() => {
+      readView.classList.remove('active', 'exiting');
+      inputScene.style.display = '';
+      inputView.classList.remove('exiting');
+      // Re-trigger entrance animation
+      inputView.style.animation = 'none';
+      inputView.offsetHeight; // force reflow
+      inputView.style.animation = '';
+      input.focus();
+    }, 400);
+  }
+
+  btnRead.addEventListener('click', enterReading);
+  btnBack.addEventListener('click', (e) => { e.preventDefault(); exitReading(); });
+
+  /* ── Keyboard shortcut: Cmd/Ctrl+Enter ── */
+  input.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && input.value.trim()) {
+      enterReading();
+    }
+    if (e.key === 'Escape') {
+      input.blur();
+    }
+  });
+
+  /* ── Scroll progress ── */
+  window.addEventListener('scroll', () => {
+    if (!readView.classList.contains('active')) {
+      scrollBar.style.width = '0%';
+      return;
+    }
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    scrollBar.style.width = pct + '%';
+  });
+
+  /* ── File drop support ── */
+  ;['dragenter', 'dragover'].forEach(evt => {
+    pasteArea.addEventListener(evt, (e) => {
+      e.preventDefault();
+      pasteArea.classList.add('dragging');
+    });
+  });
+
+  ;['dragleave', 'drop'].forEach(evt => {
+    pasteArea.addEventListener(evt, () => {
+      pasteArea.classList.remove('dragging');
+    });
+  });
+
+  pasteArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.md') || file.name.endsWith('.markdown') || file.type === 'text/markdown' || file.type === 'text/plain')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        input.value = ev.target.result;
+        input.dispatchEvent(new Event('input'));
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  /* Also support dropping on the full window */
+  document.body.addEventListener('dragover', (e) => e.preventDefault());
+  document.body.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.md') || file.name.endsWith('.markdown') || file.type === 'text/markdown' || file.type === 'text/plain')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        input.value = ev.target.result;
+        input.dispatchEvent(new Event('input'));
+        // If we're in reading view, go back first
+        if (readView.classList.contains('active')) exitReading();
+      };
+      reader.readAsText(file);
+    }
+  });
+})();
+</script>
+</body>
+</html>
