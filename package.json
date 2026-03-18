@@ -1,0 +1,24 @@
+{
+  "name": "swankdown",
+  "version": "1.0.0",
+  "description": "**Read markdown beautifully.** Bringhurst-inspired typography for the digital age.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test 'web/test/**/*.test.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gusaiani/swankdown.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gusaiani/swankdown/issues"
+  },
+  "homepage": "https://github.com/gusaiani/swankdown#readme",
+  "devDependencies": {
+    "jsdom": "^27.0.1"
+  }
+}
