@@ -871,7 +871,7 @@
     }, 400);
   }
 
-  btnRead.addEventListener('click', enterReading);
+  btnRead.addEventListener('click', () => enterReading());
   btnBack.addEventListener('click', (e) => { e.preventDefault(); exitReading(); });
 
   /* ── Keyboard shortcut: Cmd/Ctrl+Enter ── */
