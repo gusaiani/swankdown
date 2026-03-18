@@ -4,7 +4,7 @@
   "description": "**Read markdown beautifully.** Bringhurst-inspired typography for the digital age.",
   "main": "index.js",
   "scripts": {
-    "test": "node --test 'web/test/**/*.test.js'"
+    "test": "node --test web/test/reading-view.test.js"
   },
   "repository": {
     "type": "git",
