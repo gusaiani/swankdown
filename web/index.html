@@ -990,6 +990,13 @@
       reader.readAsText(file);
     }
   });
+
+  /* ── Focus textarea on load (autofocus attribute alone is unreliable) ── */
+  if (!mdParam) {
+    window.addEventListener('DOMContentLoaded', () => input.focus());
+    // Fallback for cases where DOMContentLoaded already fired
+    setTimeout(() => { if (!readView.classList.contains('active')) input.focus(); }, 0);
+  }
 })();
 </script>
 </body>
