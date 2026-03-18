@@ -16,4 +16,4 @@ jobs:
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-          scp -o StrictHostKeyChecking=no index.html root@${{ secrets.DEPLOY_HOST }}:/var/www/swankdown.gustavosaiani.com/index.html
+          scp -o StrictHostKeyChecking=no web/index.html root@${{ secrets.DEPLOY_HOST }}:/var/www/swankdown.gustavosaiani.com/index.html

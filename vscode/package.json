@@ -1,0 +1,36 @@
+{
+  "name": "swankdown",
+  "displayName": "Swankdown",
+  "description": "Bringhurst-inspired markdown preview",
+  "version": "0.1.0",
+  "publisher": "gusaiani",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:swankdown.preview",
+    "onLanguage:markdown"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "swankdown.preview",
+        "title": "Swankdown: Open Preview"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "swankdown.preview",
+        "key": "shift+cmd+v",
+        "when": "editorLangId == markdown"
+      }
+    ],
+    "markdown.previewStyles": [
+      "./styles/swankdown.css"
+    ]
+  }
+}
