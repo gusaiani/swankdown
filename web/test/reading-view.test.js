@@ -170,13 +170,20 @@ describe('Browser back button navigation', () => {
   });
 });
 
-describe('H1 text-transform', () => {
+describe('H1 styling', () => {
   it('h1 should not use text-transform lowercase', () => {
     const html = fs.readFileSync(HTML_PATH, 'utf-8');
-    // Find the .page h1 rule and check it doesn't have text-transform: lowercase
     const h1Rule = html.match(/\.page\s+h1\s*\{[^}]*\}/);
     assert.ok(h1Rule, 'Should find .page h1 CSS rule');
     assert.ok(!h1Rule[0].includes('text-transform: lowercase'),
       'H1 should not have text-transform: lowercase');
+  });
+
+  it('h1 should not use Cormorant SC (small-caps font)', () => {
+    const html = fs.readFileSync(HTML_PATH, 'utf-8');
+    const h1Rule = html.match(/\.page\s+h1\s*\{[^}]*\}/);
+    assert.ok(h1Rule, 'Should find .page h1 CSS rule');
+    assert.ok(!h1Rule[0].includes('Cormorant SC'),
+      'H1 should not use Cormorant SC (renders lowercase as small capitals)');
   });
 });

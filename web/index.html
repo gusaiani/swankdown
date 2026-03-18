@@ -363,7 +363,7 @@
 
   /* Headings — Cormorant SC for display, restrained sizing */
   .page h1 {
-    font-family: 'Cormorant SC', serif;
+    font-family: 'Cormorant Garamond', serif;
     font-weight: 600;
     font-size: var(--s4);
     line-height: var(--leading-display);
@@ -993,7 +993,7 @@
 
   /* ── Focus textarea on load (must wait for fadeUp animation to finish) ── */
   if (!mdParam) {
-    setTimeout(() => input.focus(), 850);
+    inputView.addEventListener('animationend', () => input.focus(), { once: true });
   }
 })();
 </script>
