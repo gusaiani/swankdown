@@ -368,7 +368,6 @@
     font-size: var(--s4);
     line-height: var(--leading-display);
     letter-spacing: 0;
-    text-transform: lowercase;
     text-align: left;
     margin-top: 3rem;
     margin-bottom: 1.8rem;
@@ -641,7 +640,7 @@
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-size: var(--s-1);
-    color: var(--ink-ghost);
+    color: var(--ink-faint);
     background: none;
     border: none;
     cursor: pointer;
@@ -654,7 +653,7 @@
   }
 
   .share-btn:hover {
-    color: var(--ink-light);
+    color: var(--ink);
   }
 
   .share-sep {
@@ -713,6 +712,7 @@
         id="markdownInput"
         placeholder="Paste your markdown here…"
         spellcheck="false"
+        autofocus
       ></textarea>
     </div>
     <div class="actions">
@@ -847,6 +847,7 @@
       readView.classList.add('active');
       readView.classList.remove('exiting');
       window.scrollTo(0, 0);
+      window.history.pushState({ reading: true }, '');
     }, 450);
   }
 
@@ -872,13 +873,23 @@
   }
 
   btnRead.addEventListener('click', () => enterReading());
-  btnBack.addEventListener('click', (e) => { e.preventDefault(); exitReading(); });
+  btnBack.addEventListener('click', (e) => { e.preventDefault(); window.history.back(); });
 
-  /* ── Keyboard shortcut: Cmd/Ctrl+Enter ── */
-  input.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && input.value.trim()) {
+  /* ── Browser back button ── */
+  window.addEventListener('popstate', () => {
+    if (readView.classList.contains('active')) {
+      exitReading();
+    }
+  });
+
+  /* ── Keyboard shortcut: Cmd/Ctrl+Enter (global) ── */
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && input.value.trim() && !readView.classList.contains('active')) {
       enterReading();
     }
+  });
+
+  input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       input.blur();
     }
