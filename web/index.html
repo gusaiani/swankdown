@@ -991,11 +991,9 @@
     }
   });
 
-  /* ── Focus textarea on load (autofocus attribute alone is unreliable) ── */
+  /* ── Focus textarea on load (must wait for fadeUp animation to finish) ── */
   if (!mdParam) {
-    window.addEventListener('DOMContentLoaded', () => input.focus());
-    // Fallback for cases where DOMContentLoaded already fired
-    setTimeout(() => { if (!readView.classList.contains('active')) input.focus(); }, 0);
+    setTimeout(() => input.focus(), 850);
   }
 })();
 </script>
