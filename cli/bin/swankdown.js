@@ -1,4 +1,113 @@
-<!DOCTYPE html>
+#!/usr/bin/env node
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const { exec } = require('child_process');
+
+// ── Argument parsing ──────────────────────────────────────────────
+
+const args = process.argv.slice(2);
+let filePath = null;
+let watchMode = false;
+let port = 0; // 0 = random available port
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--watch' || args[i] === '-w') {
+    watchMode = true;
+  } else if (args[i] === '--port' || args[i] === '-p') {
+    port = parseInt(args[i + 1], 10);
+    if (isNaN(port)) {
+      console.error('Error: --port requires a number');
+      process.exit(1);
+    }
+    i++;
+  } else if (args[i] === '--help' || args[i] === '-h') {
+    printUsage();
+    process.exit(0);
+  } else if (!args[i].startsWith('-')) {
+    filePath = args[i];
+  }
+}
+
+function printUsage() {
+  console.log(`
+  swankdown — read markdown beautifully
+
+  Usage:
+    swankdown <file.md>              Open a markdown file in the browser
+    swankdown <file.md> --watch      Auto-reload on file changes
+    cat README.md | swankdown        Read from stdin
+    swankdown --port 3000 file.md    Use a specific port
+
+  Options:
+    -w, --watch    Watch the file for changes and auto-reload
+    -p, --port     Specify the server port (default: random)
+    -h, --help     Show this help message
+`);
+}
+
+// ── Read markdown content ─────────────────────────────────────────
+
+function readMarkdownFile() {
+  if (!filePath) return null;
+  const resolved = path.resolve(filePath);
+  if (!fs.existsSync(resolved)) {
+    console.error(`Error: file not found: ${resolved}`);
+    process.exit(1);
+  }
+  return fs.readFileSync(resolved, 'utf-8');
+}
+
+function readStdin() {
+  return new Promise((resolve) => {
+    if (process.stdin.isTTY) {
+      resolve(null);
+      return;
+    }
+    let data = '';
+    process.stdin.setEncoding('utf-8');
+    process.stdin.on('data', (chunk) => { data += chunk; });
+    process.stdin.on('end', () => resolve(data));
+  });
+}
+
+// ── HTML template ─────────────────────────────────────────────────
+
+function buildHTML(markdown, enableWatch) {
+  // Escape backticks and backslashes for embedding in JS template literal
+  const escaped = markdown
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\$/g, '\\$');
+
+  const watchScript = enableWatch ? `
+    <script>
+    (function() {
+      let lastETag = '';
+      async function poll() {
+        try {
+          const res = await fetch('/api/content', { headers: { 'If-None-Match': lastETag } });
+          if (res.status === 200) {
+            lastETag = res.headers.get('ETag') || '';
+            const md = await res.text();
+            const html = refineTypography(marked.parse(md));
+            document.getElementById('pageContent').innerHTML = html;
+          }
+        } catch (e) {
+          // Server gone, stop polling
+          return;
+        }
+        setTimeout(poll, 500);
+      }
+      // Start polling after a short delay
+      setTimeout(poll, 1000);
+    })();
+    </script>` : '';
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -90,204 +199,16 @@
   }
 
   /* ——————————————————————————————————————————————————
-     Layout Shells
-     —————————————————————————————————————————————————— */
-  .scene {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-  }
-
-  /* ——————————————————————————————————————————————————
-     Input View
-     —————————————————————————————————————————————————— */
-  .input-view {
-    width: 100%;
-    max-width: 40rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .input-view.exiting {
-    animation: fadeOut 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  }
-
-  @keyframes fadeOut {
-    to { opacity: 0; transform: translateY(-12px); }
-  }
-
-  .brand {
-    font-family: 'Cormorant SC', 'Garamond', serif;
-    font-size: var(--s3);
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    color: var(--ink);
-    margin-bottom: 0.25rem;
-    text-transform: lowercase;
-  }
-
-  .brand-sub {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-weight: 300;
-    font-size: var(--s0);
-    color: var(--ink-faint);
-    letter-spacing: 0;
-    margin-bottom: 0.25rem;
-  }
-
-  .paste-area {
-    width: 100%;
-    position: relative;
-  }
-
-  .paste-area textarea {
-    width: 100%;
-    min-height: 12rem;
-    height: calc(100vh - 22rem);
-    max-height: 28rem;
-    padding: 2rem 2.25rem;
-    font-family: 'EB Garamond', serif;
-    font-size: var(--s-1);
-    line-height: 1.65;
-    color: var(--ink);
-    background: transparent;
-    border: 1.5px solid var(--ink-ghost);
-    border-radius: 2px;
-    resize: vertical;
-    outline: none;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .paste-area textarea::placeholder {
-    color: var(--ink-ghost);
-    font-style: italic;
-  }
-
-  .paste-area textarea:focus {
-    border-color: var(--ink-faint);
-    box-shadow: 0 0 0 1px var(--ink-ghost);
-  }
-
-  .actions {
-    margin-top: 1.75rem;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-  }
-
-  .btn-read {
-    font-family: 'Cormorant SC', serif;
-    font-size: var(--s-1);
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: lowercase;
-    color: var(--paper);
-    background: var(--ink);
-    border: none;
-    padding: 0.65em 2.5em 0.75em;
-    cursor: pointer;
-    border-radius: 1px;
-    transition: background 0.3s ease, transform 0.15s ease;
-  }
-
-  .btn-read:hover {
-    background: var(--accent);
-  }
-
-  .btn-read:active {
-    transform: scale(0.97);
-  }
-
-  .btn-read:disabled {
-    opacity: 0.3;
-    cursor: default;
-  }
-
-  .or-drop {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: var(--s-2);
-    color: var(--ink-ghost);
-    letter-spacing: 0;
-  }
-
-  .credits {
-    margin-top: 1.5rem;
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: var(--s-2);
-    color: var(--ink-faint);
-    letter-spacing: 0;
-  }
-
-  .credits a {
-    color: var(--ink-light);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  .credits a:hover {
-    color: var(--ink);
-  }
-
-  .tribute {
-    margin-top: 2.5rem;
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: var(--s-1);
-    color: var(--ink-faint);
-    letter-spacing: 0;
-    margin-top: 0.4rem;
-    margin-bottom: 2.5rem;
-  }
-
-  .tribute a {
-    color: var(--ink-light);
-    text-decoration: none;
-    border-bottom: 1px solid var(--ink-ghost);
-    transition: color 0.2s ease, border-color 0.2s ease;
-  }
-
-  .tribute a:hover {
-    color: var(--ink);
-    border-bottom-color: var(--ink-light);
-  }
-
-  /* Drag overlay */
-  .paste-area.dragging textarea {
-    border-color: var(--ink-light);
-    box-shadow: 0 0 0 2px var(--ink-ghost);
-  }
-
-  /* ——————————————————————————————————————————————————
-     Reading View — the page
+     Reading View Layout
      —————————————————————————————————————————————————— */
   .reading-view {
-    display: none;
+    display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
     min-height: 100vh;
     padding: 0 2rem;
-  }
-
-  .reading-view.active {
-    display: flex;
     animation: pageReveal 1s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .reading-view.exiting {
-    animation: fadeOut 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   @keyframes pageReveal {
@@ -295,42 +216,11 @@
     to   { opacity: 1; }
   }
 
-  /* Back button — top left, subtle */
-  .back-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    padding: 1.25rem 2rem;
-    z-index: 100;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .btn-back {
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: var(--s0);
-    color: var(--ink-faint);
-    background: none;
-    border: none;
-    cursor: pointer;
-    letter-spacing: 0;
-    padding: 0.3em 0;
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  .btn-back:hover {
-    color: var(--ink-light);
-  }
-
   /* The page surface */
   .page {
     max-width: var(--measure);
     width: 100%;
-    padding: 2rem 0 8rem;
+    padding: 4rem 0 8rem;
   }
 
   /* ——————————————————————————————————————————————————
@@ -373,8 +263,6 @@
     margin-bottom: 1.8rem;
     color: var(--ink);
   }
-
-  /* Ornamental rule after h1 */
 
   .page h2 {
     font-family: 'Cormorant Garamond', serif;
@@ -479,7 +367,7 @@
   }
 
   .page hr::before {
-    content: '* \2003 * \2003 *';
+    content: '* \\2003 * \\2003 *';
     font-family: 'Cormorant Garamond', serif;
     font-size: var(--s-1);
     color: var(--ink-ghost);
@@ -602,16 +490,6 @@
   }
 
   /* ——————————————————————————————————————————————————
-     Responsive
-     —————————————————————————————————————————————————— */
-  @media (max-width: 600px) {
-    :root { --base: 20px; }
-    .page { padding: 3rem 0 5rem; }
-    .paste-area textarea { min-height: 8rem; height: calc(100vh - 20rem); max-height: 20rem; padding: 1.25rem 1.5rem; }
-    .input-view { padding: 0 0.5rem; }
-  }
-
-  /* ——————————————————————————————————————————————————
      Scroll progress — a thin rule at the top
      —————————————————————————————————————————————————— */
   .scroll-progress {
@@ -625,9 +503,17 @@
     transition: width 0.1s linear;
   }
 
+  /* ——————————————————————————————————————————————————
+     Responsive
+     —————————————————————————————————————————————————— */
+  @media (max-width: 600px) {
+    :root { --base: 20px; }
+    .page { padding: 3rem 0 5rem; }
+  }
+
   /* Print styles — because a well-set page deserves print */
   @media print {
-    body::before, .back-bar, .scroll-progress { display: none; }
+    body::before, .scroll-progress { display: none; }
     .page { padding: 0; }
     .reading-view { padding: 0; }
   }
@@ -637,185 +523,166 @@
 
 <div class="scroll-progress" id="scrollProgress"></div>
 
-<!-- ————— INPUT VIEW ————— -->
-<div class="scene" id="inputScene">
-  <div class="input-view" id="inputView">
-    <div class="brand">Swankdown</div>
-    <div class="brand-sub">paste markdown, read beautifully</div>
-    <div class="tribute">
-      Typography informed by <a href="https://www.amazon.com/Elements-Typographic-Style-Robert-Bringhurst/dp/0881792128" target="_blank" rel="noopener">The Elements of Typographic Style</a> by Robert Bringhurst
-    </div>
-    <div class="paste-area" id="pasteArea">
-      <textarea
-        id="markdownInput"
-        placeholder="Paste your markdown here…"
-        spellcheck="false"
-      ></textarea>
-    </div>
-    <div class="actions">
-      <button class="btn-read" id="btnRead" disabled>read</button>
-      <span class="or-drop">or drop a .md file</span>
-    </div>
-    <div class="credits">
-      Made by Gustavo Saiani · <a href="https://github.com/gusaiani" target="_blank" rel="noopener">Github</a> · <a href="https://www.linkedin.com/in/gusaiani/" target="_blank" rel="noopener">LinkedIn</a>
-    </div>
-  </div>
-</div>
-
-<!-- ————— READING VIEW ————— -->
-<div class="reading-view" id="readingView">
-  <div class="back-bar">
-    <a href="#" class="btn-back" id="btnBack">← new text</a>
-  </div>
+<div class="reading-view">
   <div class="page" id="pageContent"></div>
   <div class="colophon">
-    <p>Set in EB Garamond &amp; Cormorant · Typeset by Swankdown</p>
+    <p>Set in EB Garamond &amp; Cormorant &middot; Typeset by Swankdown</p>
   </div>
 </div>
 
 <script>
-(function () {
-  const input      = document.getElementById('markdownInput');
-  const btnRead    = document.getElementById('btnRead');
-  const btnBack    = document.getElementById('btnBack');
-  const inputScene = document.getElementById('inputScene');
-  const inputView  = document.getElementById('inputView');
-  const readView   = document.getElementById('readingView');
-  const pageEl     = document.getElementById('pageContent');
-  const pasteArea  = document.getElementById('pasteArea');
-  const scrollBar  = document.getElementById('scrollProgress');
-
-  /* ── Enable / disable read button ── */
-  input.addEventListener('input', () => {
-    btnRead.disabled = input.value.trim().length === 0;
-  });
-
   /* ── Typographic refinements ── */
   function refineTypography(html) {
     let s = html;
     // Straight quotes → curly quotes
-    s = s.replace(/"(\w)/g,  '\u201c$1');          // opening double
-    s = s.replace(/(\w)"/g,  '$1\u201d');           // closing double
-    s = s.replace(/'(\w)/g,  '\u2018$1');           // opening single
-    s = s.replace(/(\w)'/g,  '$1\u2019');           // closing single  / apostrophe
+    s = s.replace(/"(\\w)/g,  '\\u201c$1');          // opening double
+    s = s.replace(/(\\w)"/g,  '$1\\u201d');           // closing double
+    s = s.replace(/'(\\w)/g,  '\\u2018$1');           // opening single
+    s = s.replace(/(\\w)'/g,  '$1\\u2019');           // closing single / apostrophe
     // Double/triple dashes → em/en dashes
-    s = s.replace(/---/g,    '\u2014');
-    s = s.replace(/--/g,     '\u2013');
+    s = s.replace(/---/g,    '\\u2014');
+    s = s.replace(/--/g,     '\\u2013');
     // Ellipsis
-    s = s.replace(/\.\.\./g, '\u2026');
+    s = s.replace(/\\.\\.\\./g, '\\u2026');
     // Multiplication sign for dimensions
-    s = s.replace(/(\d)\s*x\s*(\d)/g, '$1\u00d7$2');
+    s = s.replace(/(\\d)\\s*x\\s*(\\d)/g, '$1\\u00d7$2');
     return s;
   }
 
-  /* ── Configure marked ── */
-  marked.setOptions({
-    smartypants: false,
-    gfm: true,
-    breaks: false
-  });
+  marked.setOptions({ smartypants: false, gfm: true, breaks: false });
 
-  /* ── Transition to reading view ── */
-  function enterReading() {
-    const raw  = input.value;
-    const html = refineTypography(marked.parse(raw));
-
-    inputView.classList.add('exiting');
-
-    setTimeout(() => {
-      inputScene.style.display = 'none';
-      pageEl.innerHTML = html;
-      readView.classList.add('active');
-      readView.classList.remove('exiting');
-      window.scrollTo(0, 0);
-    }, 450);
-  }
-
-  /* ── Transition back to input ── */
-  function exitReading() {
-    readView.classList.add('exiting');
-
-    setTimeout(() => {
-      readView.classList.remove('active', 'exiting');
-      inputScene.style.display = '';
-      inputView.classList.remove('exiting');
-      // Re-trigger entrance animation
-      inputView.style.animation = 'none';
-      inputView.offsetHeight; // force reflow
-      inputView.style.animation = '';
-      input.focus();
-    }, 400);
-  }
-
-  btnRead.addEventListener('click', enterReading);
-  btnBack.addEventListener('click', (e) => { e.preventDefault(); exitReading(); });
-
-  /* ── Keyboard shortcut: Cmd/Ctrl+Enter ── */
-  input.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && input.value.trim()) {
-      enterReading();
-    }
-    if (e.key === 'Escape') {
-      input.blur();
-    }
-  });
+  const raw = \`${escaped}\`;
+  const html = refineTypography(marked.parse(raw));
+  document.getElementById('pageContent').innerHTML = html;
 
   /* ── Scroll progress ── */
   window.addEventListener('scroll', () => {
-    if (!readView.classList.contains('active')) {
-      scrollBar.style.width = '0%';
-      return;
-    }
     const scrollTop = window.scrollY;
     const docHeight = document.documentElement.scrollHeight - window.innerHeight;
     const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-    scrollBar.style.width = pct + '%';
+    document.getElementById('scrollProgress').style.width = pct + '%';
   });
-
-  /* ── File drop support ── */
-  ;['dragenter', 'dragover'].forEach(evt => {
-    pasteArea.addEventListener(evt, (e) => {
-      e.preventDefault();
-      pasteArea.classList.add('dragging');
-    });
-  });
-
-  ;['dragleave', 'drop'].forEach(evt => {
-    pasteArea.addEventListener(evt, () => {
-      pasteArea.classList.remove('dragging');
-    });
-  });
-
-  pasteArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && (file.name.endsWith('.md') || file.name.endsWith('.markdown') || file.type === 'text/markdown' || file.type === 'text/plain')) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        input.value = ev.target.result;
-        input.dispatchEvent(new Event('input'));
-      };
-      reader.readAsText(file);
-    }
-  });
-
-  /* Also support dropping on the full window */
-  document.body.addEventListener('dragover', (e) => e.preventDefault());
-  document.body.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && (file.name.endsWith('.md') || file.name.endsWith('.markdown') || file.type === 'text/markdown' || file.type === 'text/plain')) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        input.value = ev.target.result;
-        input.dispatchEvent(new Event('input'));
-        // If we're in reading view, go back first
-        if (readView.classList.contains('active')) exitReading();
-      };
-      reader.readAsText(file);
-    }
-  });
-})();
 </script>
+${watchScript}
 </body>
-</html>
+</html>`;
+}
+
+// ── Open browser ──────────────────────────────────────────────────
+
+function openBrowser(url) {
+  const platform = process.platform;
+  let cmd;
+  if (platform === 'darwin') {
+    cmd = `open "${url}"`;
+  } else if (platform === 'win32') {
+    cmd = `start "" "${url}"`;
+  } else {
+    cmd = `xdg-open "${url}"`;
+  }
+  exec(cmd, (err) => {
+    if (err) {
+      // Silently fail — the URL is already printed to stdout
+    }
+  });
+}
+
+// ── Server ────────────────────────────────────────────────────────
+
+async function main() {
+  let markdown;
+
+  if (filePath) {
+    markdown = readMarkdownFile();
+  } else {
+    markdown = await readStdin();
+  }
+
+  if (!markdown) {
+    printUsage();
+    process.exit(1);
+  }
+
+  const resolvedPath = filePath ? path.resolve(filePath) : null;
+
+  // Content version tracking for watch mode
+  let contentVersion = 0;
+  let currentMarkdown = markdown;
+
+  // Watch file for changes
+  if (watchMode && resolvedPath) {
+    let debounce = null;
+    fs.watch(resolvedPath, () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        try {
+          currentMarkdown = fs.readFileSync(resolvedPath, 'utf-8');
+          contentVersion++;
+        } catch (e) {
+          // File might be temporarily unavailable during writes
+        }
+      }, 100);
+    });
+  }
+
+  const server = http.createServer((req, res) => {
+    if (req.url === '/api/content' && watchMode) {
+      const clientETag = req.headers['if-none-match'];
+      const serverETag = String(contentVersion);
+
+      if (clientETag === serverETag) {
+        res.writeHead(304);
+        res.end();
+        return;
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'ETag': serverETag,
+        'Cache-Control': 'no-cache',
+      });
+      res.end(currentMarkdown);
+      return;
+    }
+
+    if (req.url === '/' || req.url === '/index.html') {
+      const html = buildHTML(currentMarkdown, watchMode && !!resolvedPath);
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache',
+      });
+      res.end(html);
+      return;
+    }
+
+    res.writeHead(404);
+    res.end('Not found');
+  });
+
+  server.listen(port, '127.0.0.1', () => {
+    const addr = server.address();
+    const url = `http://127.0.0.1:${addr.port}`;
+    const fileName = resolvedPath ? path.basename(resolvedPath) : 'stdin';
+
+    console.log(`\n  swankdown serving ${fileName}`);
+    console.log(`  ${url}`);
+    if (watchMode && resolvedPath) {
+      console.log(`  watching for changes...`);
+    }
+    console.log(`  press ctrl+c to stop\n`);
+
+    openBrowser(url);
+  });
+
+  // Graceful shutdown
+  function shutdown() {
+    console.log('\n  goodbye.\n');
+    server.close();
+    process.exit(0);
+  }
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+main();
